@@ -14,6 +14,8 @@ const r = require('rethinkdb')
 const app = new koa();
 const rout = new router();
 
+let i = 0;
+
 app.use(async (ctx, next) => {
   await next();
   await closeConnection(ctx);
@@ -31,7 +33,7 @@ app.use(createConnection);
 app.use(rout.routes());
 
 rout.get('/', async (ctx, next) => {
-  ctx.body = 'API ok';
+  ctx.body = `API ok`;
 });
 
 rout.get('/todo/get', async (ctx, next) => {
@@ -50,7 +52,7 @@ rout.get('/todo/get', async (ctx, next) => {
 rout.get('/todo/new', async (ctx, next) => {
   try{
       var todo = {
-        name: 'todo_name_' + Math.round(Math.random()*1000000)
+        name: `todo_name_${Math.round(Math.random()*1000000)}`
       };
       todo.createdAt = r.now(); // Set the field `createdAt` to the current time
       var result = await r.table('todos').insert(todo, {returnChanges: true}).run(ctx._rdbConn);
@@ -71,7 +73,7 @@ rout.post('/todo/update', async (ctx, next) => {
       var todo = await parse(ctx);
       delete todo._saving;
       if ((todo == null) || (todo.id == null)) {
-          throw new Error("The todo must have a field `id`.");
+          throw new Error(`The todo must have a field 'id'.`);
       }
 
       var result = await r.table('todos').get(todo.id).update(todo, {returnChanges: true}).run(ctx._rdbConn);
@@ -88,10 +90,10 @@ rout.post('/todo/delete', async (ctx, next) => {
   try{
       var todo = await parse(ctx);
       if ((todo == null) || (todo.id == null)) {
-          throw new Error("The todo must have a field `id`.");
+          throw new Error(`The todo must have a field 'id'.`);
       }
       var result = await r.table('todos').get(todo.id).delete().run(ctx._rdbConn);
-      ctx.body = "";
+      ctx.body = `deleted`;
   }
   catch(e) {
       ctx.status = 500;
@@ -103,6 +105,7 @@ rout.post('/todo/delete', async (ctx, next) => {
 async function createConnection(ctx, next) {
     try {
         ctx._rdbConn = await r.connect(config.rethinkdb);
+        ctx.i = ++i;
     }
     catch(err) {
         this.status = 500;
@@ -116,16 +119,16 @@ async function createConnection(ctx, next) {
  */
 async function closeConnection(ctx, next) {
     await ctx._rdbConn.close();
+    console.log(`closed connection #${ctx.i}`);
 }
 
 async function init() {
     let conn = await r.connect(config.rethinkdb);
 
-
-    try { await r.dbCreate(config.rethinkdb.db).run(conn); } catch(e) { console.log('db exists'); }
-    try { await r.tableCreate('todos').run(conn); } catch(e) { console.log('table exists'); }
-    try { await r.table('todos').indexCreate('createdAt').run(conn); } catch(e) { console.log('index exists'); }
-    try { await r.table('todos').indexWait('createdAt').run(conn) } catch(e) { console.log('index ready error'); }
+    try { await r.dbCreate(config.rethinkdb.db).run(conn); } catch(e) { console.log(`db exists`); }
+    try { await r.tableCreate('todos').run(conn); } catch(e) { console.log(`table exists`); }
+    try { await r.table('todos').indexCreate('createdAt').run(conn); } catch(e) { console.log(`index exists`); }
+    try { await r.table('todos').indexWait('createdAt').run(conn) } catch(e) { console.log(`index ready error`); }
 
     startKoa();
     conn.close();
@@ -133,11 +136,11 @@ async function init() {
 
 function startKoa() {
     app.listen(config.koa.port);
-    console.log('Listening on port '+config.koa.port);
+    console.log(`Listening on port ${config.koa.port}`);
 }
 
 init().then(function(){
-  console.log('whoa!');
+  console.log(`whoa!`);
 }).catch(function(e){
-  console.log('init error:', e);
+  console.log(`init error:`, e);
 });
