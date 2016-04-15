@@ -157,7 +157,15 @@ async function init() {
     try { await r.table('todos').indexWait('createdAt').run(conn); } catch(e) { console.log(`index ready error`); }
     try { await r.table('todos').indexWait('name').run(conn); } catch(e) { console.log(`index ready error`); }
     try { await initPool(); } catch(e) { console.log(`error creating connection pool ${e}`); }
-    try { listenChanges(conn); } catch(e) { console.log(`error streaming changes ${e}`); }
+    //try { listenChanges(conn); } catch(e) { console.log(`error streaming changes ${e}`); }
+
+    r.table('todos').changes().run(conn, function(err, cursor) {
+      if(err) {
+        console.log(`ERROR STREAMING ${err}`);
+      } else {
+        console.log(`changes length is ${cursor.length || 0}`);
+      }
+    });
 
     startKoa();
 
