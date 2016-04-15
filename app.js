@@ -15,6 +15,11 @@ const app = new koa();
 const rout = new router();
 
 app.use(async (ctx, next) => {
+  await next();
+  await closeConnection(ctx);
+});
+
+app.use(async (ctx, next) => {
   const start = new Date;
   await next();
   const ms = new Date - start;
@@ -109,8 +114,8 @@ async function createConnection(ctx, next) {
 /*
  * Close the RethinkDB connection
  */
-async function closeConnection(next) {
-    await this._rdbConn.close();
+async function closeConnection(ctx, next) {
+    await ctx._rdbConn.close();
 }
 
 async function init() {
