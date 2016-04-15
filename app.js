@@ -29,7 +29,7 @@ app.use(async (ctx, next) => {
   const start = new Date;
   await next();
   const ms = new Date - start;
-  //console.log(`${ctx.method} ${ctx.url} - ${ms}`);
+  console.log(`${ctx.method} ${ctx.url} - ${ms}`);
 });
 
 app.use(async (ctx, next) => {
@@ -123,14 +123,14 @@ async function createConnection() {
 
 function getConnection() {
   let i = nextFreeConnection();
-  //console.log(`allocating connection #${ i }`);
+  console.log(`allocating connection #${ i }`);
   return i;
 }
 
 function nextFreeConnection() {
   for(let i = 0; i < CONNECTION_POOL_SIZE; i++) {
     if(connection_pool[i]['available']) {
-      //console.log(`found available connection #${ i }`);
+      console.log(`found available connection #${ i }`);
       connection_pool[i]['available'] = false;
       return i;
     }
@@ -142,12 +142,15 @@ function nextFreeConnection() {
  * Close the RethinkDB connection
  */
 async function closeConnection(ctx, next) {
-    //console.log(`releasing connection #${ ctx.i }`);
-    //await connection_pool[ctx.i]['conn'].close();
+    console.log(`releasing connection #${ ctx.i }`);
     connection_pool[ctx.i]['available'] = true;
 }
 
 async function init() {
+
+    let changes = 0;
+    let printNow = true;
+    let startTime = new Date().getTime();
 
     const conn = await r.connect(config.rethinkdb);
     try { await r.dbCreate(config.rethinkdb.db).run(conn); } catch(e) { console.log(`db exists`); }
@@ -163,7 +166,16 @@ async function init() {
       if(err) {
         console.log(`ERROR STREAMING ${err}`);
       } else {
-        console.log(`changes length is ${cursor.length || 0}`);
+        cursor.each(function(err, obj){
+          changes++;
+          if(printNow) {
+            const elapsedSeconds = (new Date().getTime() - startTime) / 1000;
+            console.log(`Changes per second: ${Math.round(changes/elapsedSeconds)}`);
+            printNow = false;
+            startTime = new Date().getTime();
+            changes = 0;
+          }
+        });
       }
     });
 
@@ -171,7 +183,11 @@ async function init() {
 
     setInterval(function(){
       printPoolStatus();
-    }, 60000);
+    }, 10000);
+
+    setInterval( function(){
+      printNow = true;
+    }, 5000);
 
 
 }
